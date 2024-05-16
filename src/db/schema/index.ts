@@ -1,10 +1,12 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   sqliteTable,
   text,
   uniqueIndex,
   integer,
+  index,
 } from "drizzle-orm/sqlite-core";
+
 const boolean = (col: string) => integer(col, { mode: "boolean" });
 const timestamp = (col: string) => integer(col, { mode: "timestamp" });
 
@@ -94,18 +96,83 @@ export const teamsRelations = relations(teams, ({ one }) => ({
   }),
 }));
 
-// export const plans = sqliteTable("plans", {
-// todo: add plans table schema
-// });
+export const plans = sqliteTable("plans", {
+  id: integer("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  price: integer("price").notNull(), // Assuming price is stored as an integer representing riyal.
+});
 
-// export const subscriptions = sqliteTable("subscriptions", {
-//   // todo: add subscriptions table schema
-// });
+export const subscriptions = sqliteTable(
+  "subscriptions",
+  {
+    id: integer("id").primaryKey().notNull(),
+    teamId: integer("teamId")
+      .notNull()
+      .references(() => teams.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    planId: integer("planId")
+      .notNull()
+      .references(() => plans.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    createdAt: timestamp("createdAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updatedAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    isActive: boolean("isActive").default(true).notNull(),
+  },
+  (table) => {
+    return {
+      teamIdx: index("teamIdx").on(table.teamId),
+      planIdx: index("planIdx").on(table.planId),
+    };
+  }
+);
 
-// export const orders = sqliteTable("orders", {
-//   // todo: add orders table schema
-// });
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: integer("id").primaryKey().notNull(),
+    subscriptionId: integer("subscriptionId")
+      .notNull()
+      .references(() => subscriptions.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    createdAt: timestamp("createdAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    paid: boolean("paid").default(false).notNull(),
+  },
+  (table) => {
+    return {
+      subscriptionIdx: index("subscriptionIdx").on(table.subscriptionId),
+    };
+  }
+);
 
-// export const subscriptionActivations = sqliteTable("subscriptionActivations", {
-//   // todo: add subscriptionActivations table schema
-// });
+export const subscriptionActivations = sqliteTable(
+  "subscriptionActivations",
+  {
+    id: integer("id").primaryKey().notNull(),
+    subscriptionId: integer("subscriptionId")
+      .notNull()
+      .references(() => subscriptions.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    activationDate: timestamp("activationDate")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => {
+    return {
+      subscriptionIdx: index("subscriptionIdx").on(table.subscriptionId),
+    };
+  }
+);
